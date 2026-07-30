@@ -13,4 +13,6 @@
     <string name="kiosk_not_owner_details">Configure o app como Device Owner para bloquear o dispositivo de forma corporativa.</string>
     <string name="start_kiosk">Ativar modo quiosque</string>
     <string name="stop_kiosk">Sair do modo quiosque</string>
+    <string name="kiosk_loading">Carregando ambiente Rechi...</string>
+    <string name="kiosk_connection_error">Nao foi possivel carregar o ambiente Rechi. Verifique a rede do dispositivo.</string>
 </resources>

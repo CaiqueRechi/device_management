@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.os.UserManager
 import br.com.rechi.mobile.MainActivity
 import br.com.rechi.mobile.R
 import br.com.rechi.mobile.admin.RechiDeviceAdminReceiver
@@ -27,7 +28,9 @@ object KioskPolicyController {
         }
 
         devicePolicyManager.setLockTaskPackages(admin, arrayOf(context.packageName))
+        devicePolicyManager.setUninstallBlocked(admin, context.packageName, true)
         setAsHomeActivity(context, devicePolicyManager, admin)
+        applyUserRestrictions(devicePolicyManager, admin)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             devicePolicyManager.setKeyguardDisabled(admin, true)
@@ -35,7 +38,10 @@ object KioskPolicyController {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            devicePolicyManager.setLockTaskFeatures(admin, 0)
+            devicePolicyManager.setLockTaskFeatures(
+                admin,
+                DevicePolicyManager.LOCK_TASK_FEATURE_NONE
+            )
         }
     }
 
@@ -94,6 +100,25 @@ object KioskPolicyController {
 
         val componentName = ComponentName(context.packageName, MainActivity::class.java.name)
         devicePolicyManager.addPersistentPreferredActivity(admin, filter, componentName)
+    }
+
+    private fun applyUserRestrictions(
+        devicePolicyManager: DevicePolicyManager,
+        admin: ComponentName
+    ) {
+        val restrictions = listOf(
+            UserManager.DISALLOW_ADD_USER,
+            UserManager.DISALLOW_APPS_CONTROL,
+            UserManager.DISALLOW_CONFIG_CREDENTIALS,
+            UserManager.DISALLOW_FACTORY_RESET,
+            UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA,
+            UserManager.DISALLOW_SAFE_BOOT,
+            UserManager.DISALLOW_UNINSTALL_APPS
+        )
+
+        restrictions.forEach { restriction ->
+            devicePolicyManager.addUserRestriction(admin, restriction)
+        }
     }
 
     private fun Context.devicePolicyManager(): DevicePolicyManager {

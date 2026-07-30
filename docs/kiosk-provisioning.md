@@ -2,6 +2,14 @@
 
 Este app usa as APIs Android de Device Policy Controller (DPC) para permitir Lock Task Mode.
 
+A versao atual abre somente:
+
+```text
+http://hubibiporahomolog.grupoibipora.local/
+```
+
+Qualquer tentativa de navegar para outro host ou abrir esquemas externos e redirecionada de volta para essa URL.
+
 ## Requisitos
 
 - Android 8.0+ recomendado
@@ -35,6 +43,14 @@ adb shell dpm remove-active-admin br.com.rechi.mobile/br.com.rechi.mobile.admin.
 ```
 
 Em alguns aparelhos, quando o Device Owner foi provisionado em modo mais restrito, pode ser necessario resetar o dispositivo.
+
+## Atualizar APK debug
+
+Como o APK debug e marcado como `testOnly`, instale com:
+
+```bash
+adb install -t -r app/build/outputs/apk/debug/app-debug.apk
+```
 
 ## Observacoes importantes
 
