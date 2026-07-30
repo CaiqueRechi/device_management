@@ -8,7 +8,7 @@ Esta primeira base foca em MDM Android para dispositivos dedicados, com suporte 
 
 - Android nativo em Kotlin
 - Android Gradle Plugin 9.3.0
-- Kotlin Android Plugin 2.3.21
+- Kotlin embutido no Android Gradle Plugin
 - Compile SDK 36.1
 - Minimum SDK 26
 - Gradle 9.5.0 recomendado
