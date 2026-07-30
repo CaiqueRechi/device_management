@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rechi MDM</string>
+    <string name="device_admin_description">Permite gerenciar politicas de dispositivo para modo quiosque.</string>
+    <string name="device_admin_enabled">Administrador Rechi ativado.</string>
+    <string name="device_admin_disabled">Administrador Rechi desativado.</string>
+    <string name="kiosk_title">Rechi MDM</string>
+    <string name="kiosk_ready_title">Modo quiosque pronto</string>
+    <string name="kiosk_ready_details">Este dispositivo esta como Device Owner e o app esta autorizado para Lock Task Mode.</string>
+    <string name="kiosk_owner_title">Device Owner ativo</string>
+    <string name="kiosk_owner_details">O app esta como Device Owner. Toque para reaplicar as politicas de quiosque.</string>
+    <string name="kiosk_not_owner_title">Aguardando provisionamento</string>
+    <string name="kiosk_not_owner_details">Configure o app como Device Owner para bloquear o dispositivo de forma corporativa.</string>
+    <string name="start_kiosk">Ativar modo quiosque</string>
+    <string name="stop_kiosk">Sair do modo quiosque</string>
+</resources>
