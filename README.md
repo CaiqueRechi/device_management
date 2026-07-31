@@ -62,3 +62,14 @@ No Windows PowerShell:
 O app so consegue travar o dispositivo de forma real quando esta configurado como Device Owner em um dispositivo corporativo/dedicado. Em um aparelho comum, `startLockTask()` pode cair em screen pinning, que o usuario consegue sair manualmente.
 
 Veja o passo a passo em [docs/kiosk-provisioning.md](docs/kiosk-provisioning.md).
+
+## Conectividade e configuração remota
+
+O app monitora internet validada, apresenta uma tela offline nativa e recebe a URL ativa por
+uma API identificada por um UUID próprio do aplicativo. A configuração é preservada localmente.
+
+O contrato da API, a configuração do build e as limitações do seletor de Wi-Fi estão em
+[docs/connectivity-and-configuration.md](docs/connectivity-and-configuration.md).
+
+A análise dos controles aplicados e riscos residuais está em
+[docs/security-review.md](docs/security-review.md).

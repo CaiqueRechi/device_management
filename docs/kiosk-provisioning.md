@@ -2,13 +2,9 @@
 
 Este app usa as APIs Android de Device Policy Controller (DPC) para permitir Lock Task Mode.
 
-A versao atual abre somente:
-
-```text
-http://hubibiporahomolog.grupoibipora.local/
-```
-
-Qualquer tentativa de navegar para outro host ou abrir esquemas externos e redirecionada de volta para essa URL.
+A versao atual recebe da API a URL ativa do dispositivo e a preserva localmente.
+Qualquer tentativa de navegar para outro esquema ou host e redirecionada de volta para a URL
+configurada. Veja `connectivity-and-configuration.md` para o contrato da API.
 
 ## Requisitos
 

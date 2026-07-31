@@ -14,6 +14,7 @@ import br.com.rechi.mobile.R
 import br.com.rechi.mobile.admin.RechiDeviceAdminReceiver
 
 object KioskPolicyController {
+    private const val SETTINGS_PACKAGE = "com.android.settings"
     data class KioskState(
         val title: String,
         val details: String
@@ -31,6 +32,8 @@ object KioskPolicyController {
         devicePolicyManager.setUninstallBlocked(admin, context.packageName, true)
         setAsHomeActivity(context, devicePolicyManager, admin)
         applyUserRestrictions(devicePolicyManager, admin)
+        @Suppress("DEPRECATION")
+        devicePolicyManager.setAutoTimeRequired(admin, true)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             devicePolicyManager.setKeyguardDisabled(admin, true)
@@ -49,6 +52,15 @@ object KioskPolicyController {
         runCatching {
             activity.startLockTask()
         }
+    }
+
+    fun allowWifiSettingsTemporarily(context: Context) {
+        val devicePolicyManager = context.devicePolicyManager()
+        if (!devicePolicyManager.isDeviceOwnerApp(context.packageName)) return
+        devicePolicyManager.setLockTaskPackages(
+            context.adminComponent(),
+            arrayOf(context.packageName, SETTINGS_PACKAGE)
+        )
     }
 
     fun stopKiosk(activity: Activity) {
@@ -114,7 +126,11 @@ object KioskPolicyController {
             UserManager.DISALLOW_MOUNT_PHYSICAL_MEDIA,
             UserManager.DISALLOW_SAFE_BOOT,
             UserManager.DISALLOW_UNINSTALL_APPS
-        )
+        ).toMutableList()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            restrictions += UserManager.DISALLOW_CONFIG_DATE_TIME
+        }
 
         restrictions.forEach { restriction ->
             devicePolicyManager.addUserRestriction(admin, restriction)
