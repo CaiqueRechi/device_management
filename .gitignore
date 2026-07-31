@@ -4,6 +4,7 @@
 *.dex
 *.iml
 .gradle/
+.kotlin/
 .idea/
 build/
 captures/

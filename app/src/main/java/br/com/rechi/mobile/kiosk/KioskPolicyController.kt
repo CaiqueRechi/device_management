@@ -1,5 +1,6 @@
 package br.com.rechi.mobile.kiosk
 
+import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager
@@ -31,6 +32,7 @@ object KioskPolicyController {
         devicePolicyManager.setUninstallBlocked(admin, context.packageName, true)
         setAsHomeActivity(context, devicePolicyManager, admin)
         applyUserRestrictions(devicePolicyManager, admin)
+        grantRuntimePermissions(context, devicePolicyManager, admin)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             devicePolicyManager.setKeyguardDisabled(admin, true)
@@ -119,6 +121,23 @@ object KioskPolicyController {
         restrictions.forEach { restriction ->
             devicePolicyManager.addUserRestriction(admin, restriction)
         }
+    }
+
+    private fun grantRuntimePermissions(
+        context: Context,
+        devicePolicyManager: DevicePolicyManager,
+        admin: ComponentName
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return
+        }
+
+        devicePolicyManager.setPermissionGrantState(
+            admin,
+            context.packageName,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED
+        )
     }
 
     private fun Context.devicePolicyManager(): DevicePolicyManager {
