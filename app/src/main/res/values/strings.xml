@@ -15,4 +15,15 @@
     <string name="stop_kiosk">Sair do modo quiosque</string>
     <string name="kiosk_loading">Carregando ambiente Rechi...</string>
     <string name="kiosk_connection_error">Nao foi possivel carregar o ambiente Rechi. Verifique a rede do dispositivo.</string>
+    <string name="offline_title">Dispositivo sem internet</string>
+    <string name="offline_message">Conecte o dispositivo a uma rede Wi-Fi com acesso à internet para continuar.</string>
+    <string name="connection_offline">Sem acesso à internet</string>
+    <string name="connection_checking">Verificando conexão…</string>
+    <string name="connection_online">Internet disponível. Continuando…</string>
+    <string name="connect_wifi">Conectar ao Wi-Fi</string>
+    <string name="try_again">Tentar novamente</string>
+    <string name="configuration_loading">Buscando configuração do dispositivo…</string>
+    <string name="configuration_error">Não foi possível obter a configuração. Tente novamente.</string>
+    <string name="configuration_invalid">A API retornou uma URL inválida.</string>
+    <string name="wifi_open_error">Não foi possível abrir o seletor de Wi-Fi neste dispositivo.</string>
 </resources>
