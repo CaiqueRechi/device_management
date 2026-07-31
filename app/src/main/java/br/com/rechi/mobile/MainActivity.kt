@@ -839,7 +839,7 @@ class MainActivity : Activity() {
                 expiresAt
             )
         }
-        require(isSecureUrl(url)) {
+        require(isAllowedPortalUrl(url)) {
             getString(R.string.api_config_insecure_url)
         }
     }
@@ -1223,15 +1223,21 @@ class MainActivity : Activity() {
         return uri.host == kioskHost && (uri.scheme == "http" || uri.scheme == "https")
     }
 
-    private fun isSecureUrl(value: String): Boolean {
-        val uri = Uri.parse(value)
-        return uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.userInfo.isNullOrBlank()
+    private fun isAllowedPortalUrl(value: String): Boolean {
+        val uri = Uri.parse(value.normalizeUrl())
+        return (uri.scheme == "http" || uri.scheme == "https") &&
+            !uri.host.isNullOrBlank() &&
+            uri.userInfo.isNullOrBlank()
     }
 
     private fun String.normalizeUrl(): String {
-        val normalized = trim()
+        var normalized = trim()
         if (normalized.isBlank()) {
             return ""
+        }
+
+        if (!URL_SCHEME_PATTERN.containsMatchIn(normalized)) {
+            normalized = "http://$normalized"
         }
 
         return if (normalized.endsWith("/")) normalized else "$normalized/"
@@ -1294,5 +1300,6 @@ class MainActivity : Activity() {
         private const val WIFI_CONNECT_TIMEOUT_MS = 30000L
         private const val API_ERROR_PREVIEW_LIMIT = 240
         private const val JWT_CLOCK_SKEW_SECONDS = 120L
+        private val URL_SCHEME_PATTERN = Regex("^[a-z][a-z0-9+.-]*://", RegexOption.IGNORE_CASE)
     }
 }

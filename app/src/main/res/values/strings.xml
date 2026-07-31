@@ -91,7 +91,7 @@
     <string name="api_config_invalid_subject">dispositivo invalido: %1$s</string>
     <string name="api_config_expired_token">token expirado ou ainda nao valido. Agora: %1$d, valido a partir de: %2$d, expira em: %3$d</string>
     <string name="api_config_missing_url">token sem URL de quiosque</string>
-    <string name="api_config_insecure_url">URL recebida nao e HTTPS segura</string>
+    <string name="api_config_insecure_url">URL recebida deve usar HTTP ou HTTPS, possuir host e nao pode conter credenciais</string>
     <string name="api_config_not_loaded">aguardando conexao para consultar API</string>
     <string name="connection_status_details">Estado: %1$s\nWi-Fi atual: %2$s</string>
     <string name="api_status_details">Status: %1$s\nEndpoint do dispositivo: %2$s\nEndpoint da chave publica: %3$s\nURL recebida: %4$s\nHost permitido: %5$s</string>
