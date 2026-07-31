@@ -25,6 +25,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
@@ -58,14 +59,16 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var setupContainer: ScrollView
     private lateinit var setupView: LinearLayout
+    private lateinit var wifiStepView: LinearLayout
+    private lateinit var apiStepView: LinearLayout
     private lateinit var setupTitle: TextView
     private lateinit var setupDetails: TextView
     private lateinit var connectionSection: InfoDropdown
     private lateinit var apiSection: InfoDropdown
     private lateinit var deviceSection: InfoDropdown
     private lateinit var wifiNetworkSpinner: Spinner
-    private lateinit var wifiSsidInput: EditText
     private lateinit var wifiPasswordInput: EditText
+    private lateinit var wifiPasswordToggleButton: Button
     private lateinit var wifiProgressBar: ProgressBar
     private lateinit var wifiStatusText: TextView
     private lateinit var wifiAdapter: ArrayAdapter<WifiNetworkOption>
@@ -76,6 +79,8 @@ class MainActivity : Activity() {
     private var apiConfigStatus = ""
     private var cachedServerPublicKeyBase64 = ""
     private var publicKeyFetchError = ""
+    private var lastApiServerTimeEpochSeconds = 0L
+    private var isWifiPasswordVisible = false
     private val androidId: String by lazy { resolveAndroidId() }
     private val deviceUuid: String by lazy { resolveDeviceUuid() }
     @Volatile
@@ -146,7 +151,7 @@ class MainActivity : Activity() {
         if (webView.url.isNullOrBlank() && isWifiConnected()) {
             loadKioskUrl()
         } else if (webView.url.isNullOrBlank()) {
-            showSetupScreen(getString(R.string.kiosk_wifi_required_details))
+            showWifiSetupScreen(getString(R.string.kiosk_wifi_required_details))
             startWifiScan()
         }
     }
@@ -209,6 +214,9 @@ class MainActivity : Activity() {
                 )
                 apiSection = buildDropdownSection(getString(R.string.dropdown_api_title))
                 deviceSection = buildDropdownSection(getString(R.string.dropdown_device_title))
+                visibleWifiNetworks.replaceWithSingle(
+                    WifiNetworkOption("", getString(R.string.wifi_select_network_placeholder))
+                )
 
                 wifiAdapter = ArrayAdapter(
                     this@MainActivity,
@@ -221,13 +229,12 @@ class MainActivity : Activity() {
                 wifiNetworkSpinner = Spinner(this@MainActivity).apply {
                     adapter = wifiAdapter
                     prompt = getString(R.string.wifi_select_network_prompt)
-                }
-
-                wifiSsidInput = EditText(this@MainActivity).apply {
-                    hint = getString(R.string.wifi_manual_ssid_hint)
-                    setSingleLine(true)
-                    inputType = InputType.TYPE_CLASS_TEXT
-                    setText(loadSavedWifiSsid())
+                    setOnTouchListener { _, event ->
+                        if (event.action == MotionEvent.ACTION_UP) {
+                            startWifiScan()
+                        }
+                        false
+                    }
                 }
 
                 wifiPasswordInput = EditText(this@MainActivity).apply {
@@ -235,6 +242,12 @@ class MainActivity : Activity() {
                     setSingleLine(true)
                     inputType = InputType.TYPE_CLASS_TEXT or
                         InputType.TYPE_TEXT_VARIATION_PASSWORD
+                }
+                wifiPasswordToggleButton = Button(this@MainActivity).apply {
+                    text = getString(R.string.show_password)
+                    textSize = 13f
+                    isAllCaps = false
+                    setOnClickListener { toggleWifiPasswordVisibility() }
                 }
 
                 wifiProgressBar = ProgressBar(this@MainActivity).apply {
@@ -250,25 +263,37 @@ class MainActivity : Activity() {
                     setPadding(0, 16, 0, 16)
                 }
 
+                wifiStepView = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(connectionSection.container, statusTextLayout())
+                    addView(wifiNetworkSpinner, compactTextLayout())
+                    addView(buildPasswordRow(), compactTextLayout())
+                    addView(wifiProgressBar, compactTextLayout())
+                    addView(wifiStatusText, compactTextLayout())
+                    addView(buildButton(getString(R.string.connect_wifi)) {
+                        connectWifiFromForm()
+                    })
+                    addView(buildButton(getString(R.string.disconnect_wifi)) {
+                        disconnectWifi()
+                    })
+                }
+
+                apiStepView = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(apiSection.container, statusTextLayout())
+                    addView(deviceSection.container, statusTextLayout())
+                    addView(buildButton(getString(R.string.retry_connection)) {
+                        loadKioskUrl()
+                    })
+                    addView(buildButton(getString(R.string.back_to_wifi_setup)) {
+                        showWifiSetupScreen(getString(R.string.kiosk_wifi_required_details))
+                    })
+                }
+
                 addView(setupTitle, compactTextLayout())
                 addView(setupDetails, compactTextLayout())
-                addView(connectionSection.container, statusTextLayout())
-                addView(apiSection.container, statusTextLayout())
-                addView(deviceSection.container, statusTextLayout())
-                addView(wifiNetworkSpinner, compactTextLayout())
-                addView(wifiSsidInput, compactTextLayout())
-                addView(wifiPasswordInput, compactTextLayout())
-                addView(wifiProgressBar, compactTextLayout())
-                addView(wifiStatusText, compactTextLayout())
-                addView(buildButton(getString(R.string.scan_wifi_networks)) {
-                    startWifiScan()
-                })
-                addView(buildButton(getString(R.string.connect_wifi)) {
-                    connectWifiFromForm()
-                })
-                addView(buildButton(getString(R.string.retry_connection)) {
-                    loadKioskUrl()
-                })
+                addView(wifiStepView, compactTextLayout())
+                addView(apiStepView, compactTextLayout())
             }
 
             addView(
@@ -328,7 +353,7 @@ class MainActivity : Activity() {
                 error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
-                    showSetupScreen(getString(R.string.kiosk_connection_error))
+                    showApiSetupScreen(getString(R.string.kiosk_connection_error))
                 }
             }
         }
@@ -348,6 +373,31 @@ class MainActivity : Activity() {
             ).apply {
                 topMargin = 12
             }
+        }
+    }
+
+    private fun buildPasswordRow(): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+
+            addView(
+                wifiPasswordInput,
+                LinearLayout.LayoutParams(
+                    0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    1f
+                )
+            )
+            addView(
+                wifiPasswordToggleButton,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    leftMargin = 12
+                }
+            )
         }
     }
 
@@ -428,35 +478,47 @@ class MainActivity : Activity() {
         refreshSetupInfo()
 
         if (!isWifiConnected()) {
-            showSetupScreen(getString(R.string.kiosk_wifi_required_details))
+            showWifiSetupScreen(getString(R.string.kiosk_wifi_required_details))
             return
         }
 
+        showApiSetupScreen(getString(R.string.kiosk_api_loading_details))
         fetchApiConfig { success ->
             if (success) {
                 setupContainer.visibility = View.GONE
                 webView.visibility = View.VISIBLE
                 webView.loadUrl(kioskUrl)
             } else {
-                showSetupScreen(getString(R.string.api_config_failed_details, apiConfigStatus))
+                showApiSetupScreen(getString(R.string.api_config_failed_details, apiConfigStatus))
             }
         }
     }
 
-    private fun showSetupScreen(details: String) {
+    private fun showWifiSetupScreen(details: String) {
+        showSetupScreen(
+            title = getString(R.string.kiosk_wifi_step_title),
+            details = details,
+            step = SetupStep.WIFI
+        )
+    }
+
+    private fun showApiSetupScreen(details: String) {
+        showSetupScreen(
+            title = getString(R.string.kiosk_api_step_title),
+            details = details,
+            step = SetupStep.API
+        )
+    }
+
+    private fun showSetupScreen(title: String, details: String, step: SetupStep) {
+        setupTitle.text = title
         setupDetails.text = details
         refreshSetupInfo()
-        setDropdownExpanded(
-            connectionSection,
-            details == getString(R.string.kiosk_wifi_required_details) ||
-                details == getString(R.string.kiosk_wifi_waiting_details) ||
-                details == getString(R.string.kiosk_wifi_failed_details)
-        )
-        setDropdownExpanded(
-            apiSection,
-            details == getString(R.string.api_config_failed_details) ||
-                details == getString(R.string.kiosk_connection_error)
-        )
+        wifiStepView.visibility = if (step == SetupStep.WIFI) View.VISIBLE else View.GONE
+        apiStepView.visibility = if (step == SetupStep.API) View.VISIBLE else View.GONE
+        setDropdownExpanded(connectionSection, step == SetupStep.WIFI)
+        setDropdownExpanded(apiSection, step == SetupStep.API)
+        setDropdownExpanded(deviceSection, step == SetupStep.API)
         webView.visibility = View.GONE
         setupView.visibility = View.VISIBLE
         setupContainer.visibility = View.VISIBLE
@@ -498,12 +560,7 @@ class MainActivity : Activity() {
 
     private fun connectWifiFromForm() {
         val selectedSsid = (wifiNetworkSpinner.selectedItem as? WifiNetworkOption)?.ssid.orEmpty()
-        val manualSsid = wifiSsidInput.text.toString().trim()
-        val ssid = when {
-            selectedSsid.isNotBlank() -> selectedSsid
-            manualSsid.isNotBlank() -> manualSsid
-            else -> ""
-        }
+        val ssid = selectedSsid
         val password = wifiPasswordInput.text.toString()
 
         if (ssid.isBlank()) {
@@ -528,11 +585,11 @@ class MainActivity : Activity() {
         showToast(result.message)
 
         if (result.success) {
-            showSetupScreen(getString(R.string.kiosk_wifi_waiting_details))
+            showWifiSetupScreen(getString(R.string.kiosk_wifi_waiting_details))
             mainHandler.postDelayed(wifiConnectionWatcher, WIFI_CONNECT_POLL_MS)
         } else {
             wifiProgressBar.visibility = View.GONE
-            showSetupScreen(getString(R.string.kiosk_wifi_failed_details))
+            showWifiSetupScreen(getString(R.string.kiosk_wifi_failed_details))
         }
     }
 
@@ -621,6 +678,54 @@ class MainActivity : Activity() {
         add(value)
     }
 
+    private fun toggleWifiPasswordVisibility() {
+        isWifiPasswordVisible = !isWifiPasswordVisible
+        wifiPasswordInput.inputType = if (isWifiPasswordVisible) {
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+        } else {
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        wifiPasswordToggleButton.text = getString(
+            if (isWifiPasswordVisible) {
+                R.string.hide_password
+            } else {
+                R.string.show_password
+            }
+        )
+        wifiPasswordInput.setSelection(wifiPasswordInput.text.length)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun disconnectWifi() {
+        val wifiManager = applicationContext.getSystemService(WifiManager::class.java)
+
+        if (wifiManager == null) {
+            wifiStatusText.text = getString(R.string.wifi_manager_unavailable)
+            return
+        }
+
+        mainHandler.removeCallbacks(wifiConnectionWatcher)
+        pendingWifiSsid = ""
+        wifiProgressBar.visibility = View.GONE
+
+        val currentSsid = currentWifiSsid()
+        val selectedSsid = (wifiNetworkSpinner.selectedItem as? WifiNetworkOption)?.ssid.orEmpty()
+        val targetSsid = currentSsid.ifBlank { selectedSsid }
+        val removedSuggestion = removeWifiSuggestion(wifiManager, targetSsid)
+
+        @Suppress("DEPRECATION")
+        val disconnected = wifiManager.disconnect()
+
+        wifiStatusText.text = when {
+            disconnected -> getString(R.string.wifi_disconnect_success, targetSsid.ifBlank {
+                getString(R.string.wifi_unknown_network)
+            })
+            removedSuggestion -> getString(R.string.wifi_disconnect_suggestion_removed, targetSsid)
+            else -> getString(R.string.wifi_disconnect_blocked)
+        }
+        refreshSetupInfo()
+    }
+
     private fun fetchApiConfig(onComplete: (Boolean) -> Unit) {
         if (isFetchingApiConfig) {
             onComplete(false)
@@ -655,10 +760,11 @@ class MainActivity : Activity() {
                     )
                 }
 
+                val apiServerTime = connection.headerFieldDateEpochSeconds()
                 val body = connection.readResponseBody(preferErrorStream = false)
                 connection.disconnect()
 
-                applyApiToken(body.trim())
+                applyApiToken(body.trim(), apiServerTime)
                 success = true
                 getString(R.string.api_config_loaded)
             }.getOrElse {
@@ -678,7 +784,7 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    private fun applyApiToken(token: String) {
+    private fun applyApiToken(token: String, apiServerTimeEpochSeconds: Long) {
         val parts = token.split(".")
         if (parts.size != 3) {
             throw IllegalArgumentException(getString(R.string.api_config_invalid_jwt))
@@ -689,7 +795,7 @@ class MainActivity : Activity() {
         }
 
         val claims = JSONObject(base64UrlDecodeToString(parts[1]))
-        validateJwtClaims(claims)
+        validateJwtClaims(claims, apiServerTimeEpochSeconds)
 
         val nextUrl = claims.optString("url").normalizeUrl()
 
@@ -701,8 +807,13 @@ class MainActivity : Activity() {
         kioskHost = Uri.parse(nextUrl).host ?: DEFAULT_KIOSK_HOST
     }
 
-    private fun validateJwtClaims(claims: JSONObject) {
-        val now = System.currentTimeMillis() / 1000
+    private fun validateJwtClaims(claims: JSONObject, apiServerTimeEpochSeconds: Long) {
+        val deviceNow = System.currentTimeMillis() / 1000
+        val now = if (apiServerTimeEpochSeconds > 0) {
+            apiServerTimeEpochSeconds
+        } else {
+            deviceNow
+        }
         val issuer = claims.optString("iss")
         val audience = claims.optString("aud")
         val subject = claims.optString("sub")
@@ -719,8 +830,14 @@ class MainActivity : Activity() {
         require(subject == deviceUuid) {
             getString(R.string.api_config_invalid_subject, subject)
         }
-        require(now >= notBefore && expiresAt > now) {
-            getString(R.string.api_config_expired_token)
+        require(now + JWT_CLOCK_SKEW_SECONDS >= notBefore &&
+            expiresAt + JWT_CLOCK_SKEW_SECONDS > now) {
+            getString(
+                R.string.api_config_expired_token,
+                now,
+                notBefore,
+                expiresAt
+            )
         }
         require(isSecureUrl(url)) {
             getString(R.string.api_config_insecure_url)
@@ -855,6 +972,18 @@ class MainActivity : Activity() {
         }
 
         return stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+    }
+
+    private fun HttpURLConnection.headerFieldDateEpochSeconds(): Long {
+        val headerTimeMillis = getHeaderFieldDate("Date", 0L)
+        val epochSeconds = if (headerTimeMillis > 0) {
+            headerTimeMillis / 1000
+        } else {
+            0L
+        }
+        lastApiServerTimeEpochSeconds = epochSeconds
+
+        return epochSeconds
     }
 
     private fun base64UrlDecodeToString(value: String): String {
@@ -1030,6 +1159,19 @@ class MainActivity : Activity() {
         )
     }
 
+    private fun removeWifiSuggestion(wifiManager: WifiManager, ssid: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || ssid.isBlank()) {
+            return false
+        }
+
+        val suggestion = WifiNetworkSuggestion.Builder()
+            .setSsid(ssid)
+            .build()
+        val status = wifiManager.removeNetworkSuggestions(listOf(suggestion))
+
+        return status == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS
+    }
+
     private fun ScanResult.toWifiNetworkOption(ssid: String): WifiNetworkOption {
         val signal = wifiSignalLabel(level)
         val security = if (capabilities.contains("WEP") ||
@@ -1117,6 +1259,11 @@ class MainActivity : Activity() {
             )
     }
 
+    private enum class SetupStep {
+        WIFI,
+        API
+    }
+
     private data class InfoDropdown(
         val container: LinearLayout,
         val header: TextView,
@@ -1146,5 +1293,6 @@ class MainActivity : Activity() {
         private const val WIFI_CONNECT_POLL_MS = 1500L
         private const val WIFI_CONNECT_TIMEOUT_MS = 30000L
         private const val API_ERROR_PREVIEW_LIMIT = 240
+        private const val JWT_CLOCK_SKEW_SECONDS = 120L
     }
 }
